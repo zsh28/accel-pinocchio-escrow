@@ -35,6 +35,7 @@ mod tests {
         escrow: (Pubkey, u8),
         maker_ata_a: Pubkey,
         vault: Pubkey,
+        make_cu: u64,
     }
 
     fn program_id() -> Pubkey {
@@ -137,7 +138,7 @@ mod tests {
         let message = Message::new(&[make_ix], Some(&maker.pubkey()));
         let recent_blockhash = svm.latest_blockhash();
         let transaction = Transaction::new(&[&maker], message, recent_blockhash);
-        svm.send_transaction(transaction).unwrap();
+        let tx = svm.send_transaction(transaction).unwrap();
 
         MakeSetup {
             svm,
@@ -147,10 +148,11 @@ mod tests {
             escrow,
             maker_ata_a,
             vault,
+            make_cu: tx.compute_units_consumed,
         }
     }
 
-    fn run_take(v2: bool) {
+    fn run_take(v2: bool) -> u64 {
         let amount_to_receive: u64 = 100_000_000;
         let amount_to_give: u64 = 500_000_000;
         let mut s = setup_make(v2, amount_to_receive, amount_to_give);
@@ -205,10 +207,11 @@ mod tests {
         let message = Message::new(&[take_ix], Some(&taker.pubkey()));
         let recent_blockhash = s.svm.latest_blockhash();
         let transaction = Transaction::new(&[&taker], message, recent_blockhash);
-        s.svm.send_transaction(transaction).unwrap();
+        let tx = s.svm.send_transaction(transaction).unwrap();
+        tx.compute_units_consumed
     }
 
-    fn run_cancel(v2: bool) {
+    fn run_cancel(v2: bool) -> u64 {
         let amount_to_receive: u64 = 100_000_000;
         let amount_to_give: u64 = 500_000_000;
         let mut s = setup_make(v2, amount_to_receive, amount_to_give);
@@ -230,7 +233,8 @@ mod tests {
         let message = Message::new(&[cancel_ix], Some(&s.maker.pubkey()));
         let recent_blockhash = s.svm.latest_blockhash();
         let transaction = Transaction::new(&[&s.maker], message, recent_blockhash);
-        s.svm.send_transaction(transaction).unwrap();
+        let tx = s.svm.send_transaction(transaction).unwrap();
+        tx.compute_units_consumed
     }
 
     #[test]
@@ -242,12 +246,12 @@ mod tests {
 
     #[test]
     fn test_take_v1() {
-        run_take(false);
+        let _ = run_take(false);
     }
 
     #[test]
     fn test_cancel_v1() {
-        run_cancel(false);
+        let _ = run_cancel(false);
     }
 
     #[test]
@@ -257,11 +261,31 @@ mod tests {
 
     #[test]
     fn test_take_v2() {
-        run_take(true);
+        let _ = run_take(true);
     }
 
     #[test]
     fn test_cancel_v2() {
-        run_cancel(true);
+        let _ = run_cancel(true);
+    }
+
+    #[test]
+    fn benchmark_compute_units_v1_vs_v2() {
+        let make_v1 = setup_make(false, 100_000_000, 500_000_000).make_cu;
+        let take_v1 = run_take(false);
+        let cancel_v1 = run_cancel(false);
+
+        let make_v2 = setup_make(true, 100_000_000, 500_000_000).make_cu;
+        let take_v2 = run_take(true);
+        let cancel_v2 = run_cancel(true);
+
+        println!(
+            "\n{:<10} | {:>10} | {:>10}",
+            "Instruction", "v1 CU", "v2 CU"
+        );
+        println!("{:-<10}-+-{:-<10}-+-{:-<10}", "", "", "");
+        println!("{:<10} | {:>10} | {:>10}", "make", make_v1, make_v2);
+        println!("{:<10} | {:>10} | {:>10}", "take", take_v1, take_v2);
+        println!("{:<10} | {:>10} | {:>10}", "cancel", cancel_v1, cancel_v2);
     }
 }
