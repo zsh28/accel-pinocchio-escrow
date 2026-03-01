@@ -126,17 +126,15 @@ Run it with output visible:
 cargo test benchmark_compute_units_v1_vs_v2 -- --nocapture
 ```
 
-Sample output shape:
+Actual output from this repo:
 
 ```text
 Instruction |      v1 CU |      v2 CU
------------ +----------- +----------
-make        |      26150 |      26113
-take        |      24650 |      24613
-cancel      |      24650 |      24613
+-----------+------------+-----------
+make       |      31974 |      30442
+take       |      16643 |      16662
+cancel     |      10599 |      10619
 ```
-
-Exact values can vary by toolchain/runtime version.
 
 ## Security and correctness checks implemented
 
