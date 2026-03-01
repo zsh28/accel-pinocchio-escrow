@@ -1,7 +1,8 @@
-use pinocchio::{AccountView, error::ProgramError};
+use pinocchio::error::ProgramError;
+use wincode::SchemaRead;
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, SchemaRead)]
 pub struct Escrow {
     maker: [u8; 32],
     mint_a: [u8; 32],
@@ -9,14 +10,26 @@ pub struct Escrow {
     amount_to_receive: [u8; 8],
     amount_to_give: [u8; 8],
     pub bump: u8,
+    _padding: [u8; 7],
 }
 
 impl Escrow {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 8;
+    pub const LEN: usize = core::mem::size_of::<Self>();
 
-    pub fn from_account_info(account_info: &AccountView) -> Result<&mut Self, ProgramError> {
-        let mut data = account_info.try_borrow_mut()?;
-        if data.len() != Escrow::LEN {
+    pub fn load(data: &[u8]) -> Result<&Self, ProgramError> {
+        if data.len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if (data.as_ptr() as usize) % core::mem::align_of::<Self>() != 0 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(unsafe { &*(data.as_ptr() as *const Self) })
+    }
+
+    pub fn load_mut(data: &mut [u8]) -> Result<&mut Self, ProgramError> {
+        if data.len() != Self::LEN {
             return Err(ProgramError::InvalidAccountData);
         }
 
